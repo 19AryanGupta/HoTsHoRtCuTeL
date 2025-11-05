@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Manage Rooms</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="admin-dashboard.html">Hotel Admin</a>
+      <div class="collapse navbar-collapse justify-content-end">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link" href="admin-dashboard.html">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link active" href="admin-rooms.html">Rooms</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-bookings.html">Bookings</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-invoices.html">Invoices</a></li>
+          <li class="nav-item"><a class="nav-link" href="logout.html">Logout</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2 class="mb-4">Manage Rooms</h2>
+
+    <!-- Add room form -->
+    <form id="addRoomForm" class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label for="roomNumber" class="form-label">Room Number</label>
+        <input type="text" id="roomNumber" class="form-control" placeholder="e.g. 101" required>
+      </div>
+
+      <div class="col-md-3">
+        <label for="roomType" class="form-label">Room Type</label>
+        <select id="roomType" class="form-control" required>
+          <option value="Single">Single</option>
+          <option value="Double">Double</option>
+          <option value="Suite">Suite</option>
+          <option value="Deluxe">Deluxe</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label for="pricePerNight" class="form-label">Price Per Night (₹)</label>
+        <input type="number" id="pricePerNight" class="form-control" placeholder="e.g. 2000" required>
+      </div>
+
+      <div class="col-md-3">
+        <label for="isAvailable" class="form-label">Available</label>
+        <select id="isAvailable" class="form-control" required>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <button type="submit" class="btn btn-success">Add Room</button>
+      </div>
+    </form>
+
+    <!-- Room list -->
+    <h4>Existing Rooms</h4>
+    <ul id="roomList" class="list-group mb-5"></ul>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // NOTE: This frontend uses the admin routes at /api/admin/rooms
+    async function fetchRooms() {
+      const res = await fetch('/api/admin/rooms'); // admin listing endpoint
+      if (!res.ok) {
+        console.error('Failed to fetch rooms', await res.text());
+        return;
+      }
+      const rooms = await res.json();
+      const roomList = document.getElementById('roomList');
+      roomList.innerHTML = '';
+      rooms.forEach(room => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <div>
+            <strong>Room ${room.roomNumber}</strong> — ${room.roomType} — ₹${room.pricePerNight} — ${room.isAvailable ? 'Available' : 'Not available'}
+          </div>
+          <div>
+            <button class="btn btn-danger btn-sm" onclick="deleteRoom('${room._id}')">Delete</button>
+          </div>
+        `;
+        roomList.appendChild(li);
+      });
+    }
+
+    document.getElementById('addRoomForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        roomNumber: document.getElementById('roomNumber').value.trim(),
+        roomType: document.getElementById('roomType').value,
+        pricePerNight: Number(document.getElementById('pricePerNight').value),
+        isAvailable: document.getElementById('isAvailable').value === 'true'
+      };
+
+      try {
+        const res = await fetch('/api/admin/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message || 'Room added');
+          e.target.reset();
+          fetchRooms();
+        } else {
+          alert(data.message || 'Failed to add room');
+          console.error('Add room failed:', data);
+        }
+      } catch (err) {
+        console.error('Network error adding room:', err);
+        alert('Server error. Check terminal.');
+      }
+    });
+
+    async function deleteRoom(id) {
+      if (!confirm('Delete this room?')) return;
+      try {
+        const res = await fetch(`/api/admin/rooms/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message || 'Deleted');
+          fetchRooms();
+        } else {
+          alert(data.message || 'Failed to delete');
+          console.error('Delete error:', data);
+        }
+      } catch (err) {
+        console.error('Network error deleting room:', err);
+        alert('Server error. Check terminal.');
+      }
+    }
+
+    // load list on page open
+    fetchRooms();
+  </script>
+</body>
+</html>

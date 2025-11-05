@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Login - Hotel Management</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="rooms.html">Hotel Management</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link" href="register.html">Register</a></li>
+          <li class="nav-item"><a class="nav-link active" href="login.html">Login</a></li>
+          <li class="nav-item"><a class="nav-link" href="rooms.html">Rooms</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Login Form -->
+  <div class="container mt-5" style="max-width: 500px;">
+    <h3 class="text-center mb-4">Customer Login</h3>
+
+    <form id="loginForm">
+      <div class="mb-3">
+        <label>Email</label>
+        <input type="email" class="form-control" id="email" required />
+      </div>
+      <div class="mb-3">
+        <label>Password</label>
+        <input type="password" class="form-control" id="password" required />
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Login</button>
+      <p class="text-center mt-2">Don’t have an account? <a href="register.html">Register here</a></p>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem("customerId", data.customerId);
+          alert("Login successful!");
+          window.location.href = "rooms.html";
+        } else {
+          alert(data.message || "Login failed");
+        }
+      } catch (err) {
+        alert("Error logging in. Try again later.");
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

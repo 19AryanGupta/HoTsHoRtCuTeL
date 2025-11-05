@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="admin-dashboard.html">Hotel Admin</a>
+      <div class="collapse navbar-collapse justify-content-end">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link active" href="admin-dashboard.html">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-rooms.html">Rooms</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-bookings.html">Bookings</a></li>
+          <li class="nav-item"><a class="nav-link" href="admin-invoices.html">Invoices</a></li>
+          <li class="nav-item"><a class="nav-link" href="logout.html">Logout</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="container">
+      <h1>Welcome, Admin!</h1>
+      <p>Select an option below:</p>
+
+      <a class="btn btn-primary mb-2" href="admin-bookings.html">Manage Bookings</a>
+      <a class="btn btn-primary mb-2" href="admin-rooms.html">Manage Rooms</a>
+      <a class="btn btn-primary mb-2" href="admin-invoices.html">View All Invoices</a>
+      <button class="btn btn-secondary" onclick="adminLogout()">Logout</button>
+    </div>
+
+    <script>
+        // Redirect to login if not authenticated
+        if (!localStorage.getItem("adminLoggedIn")) {
+            alert("You must log in as admin first");
+            window.location.href = "admin-login.html";
+        }
+
+        function adminLogout() {
+            localStorage.removeItem("adminLoggedIn");
+            alert("Logged out successfully!");
+            window.location.href = "/admin-login.html";
+        }
+    </script>
+</body>
+</html>
