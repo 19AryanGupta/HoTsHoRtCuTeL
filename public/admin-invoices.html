@@ -35,7 +35,7 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Invoice Details</h5>
+          <h5 class="modal-title">Invoice / Booking Details</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="invoiceModalBody">
@@ -52,83 +52,110 @@
           window.location.href = "admin-login.html";
       }
 
-      // Fetch invoices from server
-      async function fetchInvoices() {
-          const response = await fetch("/api/admin/invoices");
-          if (!response.ok) {
-              document.getElementById("invoiceList").innerHTML = '<p class="text-danger">Could not load invoices</p>';
-              return;
-          }
-          const invoices = await response.json();
+      // Fetch invoices and bookings, merge so page isn't empty when there are no Invoice docs
+      async function fetchInvoicesAndBookings() {
+          const invoiceResp = await fetch("/api/admin/invoices");
+          const bookingsResp = await fetch("/api/admin/bookings");
+
+          const invoiceList = invoiceResp.ok ? await invoiceResp.json() : [];
+          const bookingList = bookingsResp.ok ? await bookingsResp.json() : [];
+
+          // invoiceList items contain bookingId field (mapped), bookingList items contain room.roomNumber
+          const invoiceBookingIds = new Set(invoiceList.map(inv => String(inv.bookingId)));
 
           const container = document.getElementById("invoiceList");
-          container.innerHTML = ""; // Clear old list
+          container.innerHTML = "";
 
-          if (!Array.isArray(invoices) || invoices.length === 0) {
-            container.innerHTML = '<p class="text-muted">No invoices found.</p>';
-            return;
-          }
-
-          invoices.forEach(invoice => {
+          // First show actual invoices
+          if (Array.isArray(invoiceList) && invoiceList.length > 0) {
+            invoiceList.forEach(inv => {
               const div = document.createElement("div");
               div.className = "card mb-3 p-3";
-
               div.innerHTML = `
-                  <p><strong>Invoice ID:</strong> ${invoice._id}</p>
-                  <p><strong>Customer:</strong> ${invoice.customer?.name || '—'}</p>
-                  <p><strong>Email:</strong> ${invoice.customer?.email || '—'}</p>
-                  <p><strong>Room Type:</strong> ${invoice.room?.type || '—'} — <strong>#${invoice.room?.roomNumber || '—'}</strong></p>
-                  <p><strong>Amount:</strong> ₹${invoice.totalAmount || '—'}</p>
-                  <p><strong>Issued On:</strong> ${new Date(invoice.createdAt).toLocaleString()}</p>
-                  <div class="mt-2">
-                    <button class="btn btn-sm btn-primary" onclick="viewInvoice('${invoice._id}')">View Details</button>
-                  </div>
-                  <hr>
+                <p><strong>Invoice ID:</strong> ${inv._id}</p>
+                <p><strong>Customer:</strong> ${inv.customer?.name || '—'}</p>
+                <p><strong>Email:</strong> ${inv.customer?.email || '—'}</p>
+                <p><strong>Room:</strong> ${inv.room?.type || '—'} — <strong>#${inv.room?.roomNumber || '—'}</strong></p>
+                <p><strong>Amount:</strong> ₹${inv.totalAmount || '—'}</p>
+                <p><strong>Issued On:</strong> ${new Date(inv.createdAt).toLocaleString()}</p>
+                <div class="mt-2">
+                  <button class="btn btn-sm btn-primary" onclick="viewInvoiceByBooking('${inv.bookingId}')">View Details</button>
+                </div>
+                <hr>
               `;
               container.appendChild(div);
-          });
+            });
+          }
+
+          // Then show bookings that don't have invoices yet
+          const bookingsWithoutInvoice = (Array.isArray(bookingList) ? bookingList.filter(b => !invoiceBookingIds.has(String(b._id))) : []);
+          if (bookingsWithoutInvoice.length > 0) {
+            const heading = document.createElement('h4');
+            heading.innerText = 'Bookings without Invoice';
+            container.appendChild(heading);
+            bookingsWithoutInvoice.forEach(b => {
+              const div = document.createElement("div");
+              div.className = "card mb-3 p-3";
+              div.innerHTML = `
+                <p><strong>Booking ID:</strong> ${b._id}</p>
+                <p><strong>Customer:</strong> ${b.customerName || '—'}</p>
+                <p><strong>Room:</strong> ${b.room?.type || '—'} — <strong>#${b.room?.roomNumber || '—'}</strong></p>
+                <p><strong>Check-in:</strong> ${b.dateFrom ? new Date(b.dateFrom).toLocaleDateString() : '—'}</p>
+                <p><strong>Check-out:</strong> ${b.dateTo ? new Date(b.dateTo).toLocaleDateString() : '—'}</p>
+                <p><strong>Total:</strong> ₹${b.totalAmount || '—'}</p>
+                <div class="mt-2">
+                  <button class="btn btn-sm btn-secondary" onclick="viewInvoiceByBooking('${b._id}')">View Booking Details</button>
+                </div>
+                <hr>
+              `;
+              container.appendChild(div);
+            });
+          }
+
+          if ((Array.isArray(invoiceList) && invoiceList.length === 0) && bookingsWithoutInvoice.length === 0) {
+            container.innerHTML = '<p class="text-muted">No invoices or bookings found.</p>';
+          }
       }
 
-      async function viewInvoice(id) {
+      // Use existing endpoint that returns booking/invoice-like data: /api/invoices/:bookingId
+      async function viewInvoiceByBooking(bookingId) {
           try {
-              const res = await fetch(`/api/admin/invoices/${id}`);
+              const res = await fetch(`/api/invoices/${bookingId}`);
               if (!res.ok) {
-                  alert('Could not load invoice details');
+                  alert('Could not load details');
                   return;
               }
               const inv = await res.json();
 
               const body = document.getElementById('invoiceModalBody');
               body.innerHTML = `
-                <p><strong>Invoice ID:</strong> ${inv.invoiceId}</p>
-                <p><strong>Issued On:</strong> ${new Date(inv.invoiceDate).toLocaleString()}</p>
-                <hr>
                 <h6>Customer</h6>
-                <p>${inv.customer?.name || '—'} (${inv.customer?.email || '—'})</p>
+                <p><strong>${inv.customer?.name || '—'}</strong> (${inv.customer?.email || '—'})</p>
                 <p>Phone: ${inv.customer?.phone || '—'}</p>
                 <hr>
+                <h6>Room</h6>
+                <p>Type: ${inv.room?.type || '—'}</p>
+                <p>Room Number: <strong>#${inv.room?.roomNumber || '—'}</strong></p>
+                <p>Price per night: ₹${inv.room?.pricePerNight || '—'}</p>
+                <hr>
                 <h6>Booking</h6>
-                <p>Booking ID: ${inv.booking?.id || '—'}</p>
-                <p>Room: ${inv.room?.type || '—'} — #${inv.room?.roomNumber || '—'}</p>
-                <p>Check-in: ${inv.booking?.checkInDate ? new Date(inv.booking.checkInDate).toLocaleString() : '—'}</p>
-                <p>Check-out: ${inv.booking?.checkOutDate ? new Date(inv.booking.checkOutDate).toLocaleString() : '—'}</p>
-                <p>Total Booking Amount: ₹${inv.booking?.totalAmount || '—'}</p>
-                <p><strong>Amount Paid (Invoice): ₹${inv.amountPaid || '—'}</strong></p>
-                <p>Status: ${inv.booking?.status || '—'}</p>
+                <p>Check-in: ${inv.checkIn ? new Date(inv.checkIn).toLocaleString() : '—'}</p>
+                <p>Check-out: ${inv.checkOut ? new Date(inv.checkOut).toLocaleString() : '—'}</p>
+                <p><strong>Total Price:</strong> ₹${inv.totalPrice || inv.bookedAmount || inv.totalAmount || '—'}</p>
+                <p>Status: ${inv.status || '—'}</p>
               `;
 
-              // show modal
               const modalEl = document.getElementById('invoiceModal');
               const modal = new bootstrap.Modal(modalEl);
               modal.show();
           } catch (err) {
-              console.error('Invoice detail error', err);
-              alert('Error loading invoice details');
+              console.error('Detail load error', err);
+              alert('Error loading details');
           }
       }
 
       // Init load
-      fetchInvoices();
+      fetchInvoicesAndBookings();
   </script>
 
 </body>

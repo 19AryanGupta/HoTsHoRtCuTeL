@@ -3,6 +3,7 @@
 const express = require('express');
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
+const Customer = require('../models/Customer'); // <-- added
 const router = express.Router();
 
 // Create a booking
@@ -12,6 +13,12 @@ router.post('/', async (req, res) => {
     try {
         if (!customerId || !roomId || !checkIn || !checkOut) {
             return res.status(400).json({ message: "Missing booking data" });
+        }
+
+        // Validate customer exists
+        const customer = await Customer.findById(customerId);
+        if (!customer) {
+            return res.status(400).json({ message: "Invalid customer. Please log in." });
         }
 
         // Validate room
