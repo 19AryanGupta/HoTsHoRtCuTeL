@@ -47,8 +47,6 @@
 
     async function loadBookings() {
       try {
-        // Adjust API path if your route is /api/bookings/:customerId or /bookings?customerId=...
-        // Try /api/bookings/<id> first:
         let res = await fetch(`/api/bookings/${customerId}`);
         if (!res.ok) {
           // fallback: try query param
@@ -65,20 +63,23 @@
         }
 
         bookings.forEach(b => {
-          const from = new Date(b.dateFrom || b.checkIn || b.checkin).toLocaleDateString();
-          const to = new Date(b.dateTo || b.checkOut || b.checkout).toLocaleDateString();
-          const room = (b.roomId && b.roomId.roomType) ? b.roomId : (b.room || {});
+          // Use canonical model fields: checkInDate / checkOutDate
+          const from = new Date(b.checkInDate || b.dateFrom || b.checkIn || b.checkin).toLocaleDateString();
+          const to = new Date(b.checkOutDate || b.dateTo || b.checkOut || b.checkout).toLocaleDateString();
+
+          const room = b.room || {};
           const roomType = room.roomType || room.type || 'Room';
-          const rate = room.rate || room.pricePerNight || room.price || '—';
+          const roomNumber = room.roomNumber || room.number || '—';
+          const rate = room.pricePerNight || room.rate || room.price || '—';
           const total = b.totalAmount || b.totalPrice || '—';
-          const status = b.status || b.status || 'Booked';
+          const status = b.status || 'Booked';
 
           const col = document.createElement('div');
           col.className = 'col-md-6 mb-3';
           col.innerHTML = `
             <div class="card">
               <div class="card-body">
-                <h5 class="card-title">${roomType}</h5>
+                <h5 class="card-title">${roomType} — #${roomNumber}</h5>
                 <p class="card-text">From: <strong>${from}</strong></p>
                 <p class="card-text">To: <strong>${to}</strong></p>
                 <p class="card-text">Rate: ₹${rate}</p>

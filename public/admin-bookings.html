@@ -58,20 +58,24 @@
                 const div = document.createElement("div");
                 div.className = "card mb-3 p-3";
 
+                // Show room type and room number, check-in/out, status and buttons
                 div.innerHTML = `
                     <p><strong>Customer:</strong> ${booking.customerName || '—'}</p>
-                    <p><strong>Room:</strong> ${booking.room?.type || '—'}</p>
-                    <p><strong>Check-in:</strong> ${new Date(booking.dateFrom).toLocaleDateString()}</p>
-                    <p><strong>Check-out:</strong> ${new Date(booking.dateTo).toLocaleDateString()}</p>
+                    <p><strong>Room:</strong> ${booking.room?.type || '—'} — <strong>#${booking.room?.roomNumber || '—'}</strong></p>
+                    <p><strong>Check-in:</strong> ${booking.dateFrom ? new Date(booking.dateFrom).toLocaleDateString() : (booking.dateTo ? '' : '')}</p>
+                    <p><strong>Check-out:</strong> ${booking.dateTo ? new Date(booking.dateTo).toLocaleDateString() : ''}</p>
                     <p><strong>Status:</strong> ${booking.status || '—'}</p>
-                    <button class="btn btn-sm btn-danger" onclick="cancelBooking('${booking._id}')">Cancel Booking</button>
+                    <div class="mt-2">
+                      <button class="btn btn-sm btn-danger me-2" onclick="cancelBooking('${booking._id}')">Cancel Booking</button>
+                      <button class="btn btn-sm btn-outline-danger" onclick="removeBooking('${booking._id}')">Remove Booking</button>
+                    </div>
                     <hr>
                 `;
                 container.appendChild(div);
             });
         }
 
-        // Cancel booking request
+        // Cancel booking request (unchanged behavior: mark Cancelled + mark room available)
         const cancelBooking = async (bookingId) => {
             const confirmCancel = confirm("Are you sure you want to cancel this booking?");
             if (!confirmCancel) return;
@@ -82,6 +86,24 @@
             const result = await response.json();
             alert(result.message);
             fetchBookings();
+        };
+
+        // Permanently remove booking
+        const removeBooking = async (bookingId) => {
+            const confirmRemove = confirm("This will permanently delete the booking (and related invoice). Continue?");
+            if (!confirmRemove) return;
+
+            try {
+              const response = await fetch(`/api/admin/bookings/${bookingId}/remove`, {
+                method: "DELETE"
+              });
+              const result = await response.json();
+              alert(result.message || 'Removed');
+              fetchBookings();
+            } catch (err) {
+              console.error('Remove booking error', err);
+              alert('Could not remove booking');
+            }
         };
 
         // On load

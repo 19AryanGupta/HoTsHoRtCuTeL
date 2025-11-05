@@ -23,57 +23,113 @@
     </div>
   </nav>
 
-    <div class="container">
-      <h2>All Invoices</h2>
-      <div id="invoiceList" class="mt-3">
-          <!-- All invoices will show here -->
+  <div class="container">
+    <h2>All Invoices</h2>
+    <div id="invoiceList" class="mt-3">
+        <!-- All invoices will show here -->
+    </div>
+  </div>
+
+  <!-- Invoice Detail Modal -->
+  <div class="modal fade" id="invoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Invoice Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="invoiceModalBody">
+          <!-- Filled dynamically -->
+        </div>
       </div>
     </div>
+  </div>
 
-    <script>
-        // Check admin login
-        if (!localStorage.getItem("adminLoggedIn")) {
-            alert("You must log in as admin first");
-            window.location.href = "admin-login.html";
-        }
+  <script>
+      // Check admin login
+      if (!localStorage.getItem("adminLoggedIn")) {
+          alert("You must log in as admin first");
+          window.location.href = "admin-login.html";
+      }
 
-        // Fetch invoices from server
-        async function fetchInvoices() {
-            const response = await fetch("/api/admin/invoices");
-            if (!response.ok) {
-                document.getElementById("invoiceList").innerHTML = '<p class="text-danger">Could not load invoices</p>';
-                return;
-            }
-            const invoices = await response.json();
-
-            const container = document.getElementById("invoiceList");
-            container.innerHTML = ""; // Clear old list
-
-            if (!Array.isArray(invoices) || invoices.length === 0) {
-              container.innerHTML = '<p class="text-muted">No invoices found.</p>';
+      // Fetch invoices from server
+      async function fetchInvoices() {
+          const response = await fetch("/api/admin/invoices");
+          if (!response.ok) {
+              document.getElementById("invoiceList").innerHTML = '<p class="text-danger">Could not load invoices</p>';
               return;
-            }
+          }
+          const invoices = await response.json();
 
-            invoices.forEach(invoice => {
-                const div = document.createElement("div");
-                div.className = "card mb-3 p-3";
+          const container = document.getElementById("invoiceList");
+          container.innerHTML = ""; // Clear old list
 
-                div.innerHTML = `
-                    <p><strong>Invoice ID:</strong> ${invoice._id}</p>
-                    <p><strong>Customer:</strong> ${invoice.customer?.name || '—'}</p>
-                    <p><strong>Email:</strong> ${invoice.customer?.email || '—'}</p>
-                    <p><strong>Room Type:</strong> ${invoice.room?.type || '—'}</p>
-                    <p><strong>Amount:</strong> ₹${invoice.totalAmount || '—'}</p>
-                    <p><strong>Issued On:</strong> ${new Date(invoice.createdAt).toLocaleString()}</p>
-                    <hr>
-                `;
-                container.appendChild(div);
-            });
-        }
+          if (!Array.isArray(invoices) || invoices.length === 0) {
+            container.innerHTML = '<p class="text-muted">No invoices found.</p>';
+            return;
+          }
 
-        // Init load
-        fetchInvoices();
-    </script>
+          invoices.forEach(invoice => {
+              const div = document.createElement("div");
+              div.className = "card mb-3 p-3";
+
+              div.innerHTML = `
+                  <p><strong>Invoice ID:</strong> ${invoice._id}</p>
+                  <p><strong>Customer:</strong> ${invoice.customer?.name || '—'}</p>
+                  <p><strong>Email:</strong> ${invoice.customer?.email || '—'}</p>
+                  <p><strong>Room Type:</strong> ${invoice.room?.type || '—'} — <strong>#${invoice.room?.roomNumber || '—'}</strong></p>
+                  <p><strong>Amount:</strong> ₹${invoice.totalAmount || '—'}</p>
+                  <p><strong>Issued On:</strong> ${new Date(invoice.createdAt).toLocaleString()}</p>
+                  <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" onclick="viewInvoice('${invoice._id}')">View Details</button>
+                  </div>
+                  <hr>
+              `;
+              container.appendChild(div);
+          });
+      }
+
+      async function viewInvoice(id) {
+          try {
+              const res = await fetch(`/api/admin/invoices/${id}`);
+              if (!res.ok) {
+                  alert('Could not load invoice details');
+                  return;
+              }
+              const inv = await res.json();
+
+              const body = document.getElementById('invoiceModalBody');
+              body.innerHTML = `
+                <p><strong>Invoice ID:</strong> ${inv.invoiceId}</p>
+                <p><strong>Issued On:</strong> ${new Date(inv.invoiceDate).toLocaleString()}</p>
+                <hr>
+                <h6>Customer</h6>
+                <p>${inv.customer?.name || '—'} (${inv.customer?.email || '—'})</p>
+                <p>Phone: ${inv.customer?.phone || '—'}</p>
+                <hr>
+                <h6>Booking</h6>
+                <p>Booking ID: ${inv.booking?.id || '—'}</p>
+                <p>Room: ${inv.room?.type || '—'} — #${inv.room?.roomNumber || '—'}</p>
+                <p>Check-in: ${inv.booking?.checkInDate ? new Date(inv.booking.checkInDate).toLocaleString() : '—'}</p>
+                <p>Check-out: ${inv.booking?.checkOutDate ? new Date(inv.booking.checkOutDate).toLocaleString() : '—'}</p>
+                <p>Total Booking Amount: ₹${inv.booking?.totalAmount || '—'}</p>
+                <p><strong>Amount Paid (Invoice): ₹${inv.amountPaid || '—'}</strong></p>
+                <p>Status: ${inv.booking?.status || '—'}</p>
+              `;
+
+              // show modal
+              const modalEl = document.getElementById('invoiceModal');
+              const modal = new bootstrap.Modal(modalEl);
+              modal.show();
+          } catch (err) {
+              console.error('Invoice detail error', err);
+              alert('Error loading invoice details');
+          }
+      }
+
+      // Init load
+      fetchInvoices();
+  </script>
 
 </body>
 </html>

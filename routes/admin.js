@@ -101,6 +101,33 @@ router.delete('/bookings/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/bookings/:id/remove -> permanently delete booking and related invoices
+router.delete('/bookings/:id/remove', async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Make room available again (defensive)
+    try {
+      await Room.findByIdAndUpdate(booking.room, { isAvailable: true });
+    } catch (e) {
+      // ignore room update errors but log
+      console.error('Error marking room available during remove:', e);
+    }
+
+    // Remove invoice documents associated with this booking (if any)
+    await Invoice.deleteMany({ booking: booking._id });
+
+    // Remove the booking itself
+    await Booking.findByIdAndDelete(booking._id);
+
+    res.json({ message: 'Booking removed permanently' });
+  } catch (err) {
+    console.error('Booking remove error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // GET /api/admin/invoices -> list invoices (populate booking.customer and booking.room, return flattened data)
 router.get('/invoices', async (req, res) => {
   try {
@@ -129,6 +156,48 @@ router.get('/invoices', async (req, res) => {
     res.json(mapped);
   } catch (err) {
     console.error('Admin invoices error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/admin/invoices/:id -> detailed invoice for admin
+router.get('/invoices/:id', async (req, res) => {
+  try {
+    const inv = await Invoice.findById(req.params.id).populate({
+      path: 'booking',
+      populate: [{ path: 'customer' }, { path: 'room' }]
+    });
+
+    if (!inv) return res.status(404).json({ message: 'Invoice not found' });
+
+    const detailed = {
+      invoiceId: inv._id,
+      invoiceDate: inv.invoiceDate || inv.createdAt,
+      amountPaid: inv.amountPaid,
+      booking: {
+        id: inv.booking?._id,
+        checkInDate: inv.booking?.checkInDate,
+        checkOutDate: inv.booking?.checkOutDate,
+        totalAmount: inv.booking?.totalAmount,
+        status: inv.booking?.status
+      },
+      customer: {
+        id: inv.booking?.customer?._id,
+        name: inv.booking?.customer?.name || inv.booking?.customer?.fullName || '',
+        email: inv.booking?.customer?.email || '',
+        phone: inv.booking?.customer?.phone || ''
+      },
+      room: {
+        id: inv.booking?.room?._id,
+        type: inv.booking?.room?.roomType || inv.booking?.room?.type || '',
+        roomNumber: inv.booking?.room?.roomNumber || '',
+        pricePerNight: inv.booking?.room?.pricePerNight
+      }
+    };
+
+    res.json(detailed);
+  } catch (err) {
+    console.error('Admin invoice detail error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
